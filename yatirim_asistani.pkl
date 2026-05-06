@@ -1,0 +1,49 @@
+import joblib
+import pandas as pd
+import yfinance as yf
+import os
+import time
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+model_path = os.path.join(BASE_DIR, 'yatirim_asistani.pkl')
+
+if not os.path.exists(model_path):
+    print(f"❌ HATA: {model_path} bulunamadı!")
+    print("Lütfen 'yatirim_asistani.pkl' dosyasını bu kodla aynı klasöre koy.")
+else:
+    model = joblib.load(model_path)
+    print("✅ AI Modeli ve Sistem Hazır. Canlı Analiz Başlıyor...\n")
+
+    def otonom_analiz():
+        takip_listesi = ["AAPL", "NVDA", "TSLA", "INTC"]
+        
+        while True:
+            print(f"\n--- {time.ctime()} - Analiz Güncelleniyor ---")
+            
+            for sembol in takip_listesi:
+                try:
+                    hisse = yf.Ticker(sembol)
+                    info = hisse.info
+                    p_degeri = info.get('marketCap', 0)
+                    nakit = info.get('totalCash', 0)
+                    borc = info.get('totalDebt', 0)
+                    sektor = 0
+
+                    veri = pd.DataFrame([[sektor, p_degeri, nakit, borc]], 
+                                       columns=['Sektor_Kod', 'Piyasa_Degeri', 'Nakit', 'Borc'])
+                    
+                    tahmin = model.predict(veri)[0]
+                    olasilik = model.predict_proba(veri)[0]
+                    
+                    durum = "UYGUN ✅" if tahmin == 1 else "RİSKLİ ❌"
+                    skor = olasilik[1] if tahmin == 1 else olasilik[0]
+                    
+                    print(f"{sembol:5} | Durum: {durum} | AI Güveni: %{skor*100:.2f}")
+                
+                except Exception as e:
+                    print(f"{sembol} analizi sırasında bir hata oluştu: {e}")
+
+            print("\n1 saat sonraki analize kadar sistem beklemede... (Durdurmak için Ctrl+C)")
+            time.sleep(3600)
+            
+    otonom_analiz()
